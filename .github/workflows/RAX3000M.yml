@@ -164,7 +164,7 @@ jobs:
         ADDITIONAL_INFO="Antfs"                 # 附加信息，可以根据需要修改
         
         # 创建release标签
-        RELEASE_TAG="${DEVICE_NAME}-${DATE_TAG}-${ADDITIONAL_INFO}"
+        RELEASE_TAG="${DEVICE_NAME#_}-${DATE_TAG}-${ADDITIONAL_INFO}"
         
         echo "::set-output name=release_tag::${RELEASE_TAG}"
         
