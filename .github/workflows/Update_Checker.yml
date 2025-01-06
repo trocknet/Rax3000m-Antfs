@@ -10,7 +10,6 @@ name: Update Checker
 
 env:
   REPO_URL: https://github.com/hanwckf/immortalwrt-mt798x  # 替换为你的源码仓库 URL
-  COMMIT_FILE: previous_commit.txt  # 存储上次提交的文件路径
 
 on:
   schedule:
@@ -28,7 +27,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-
     - name: Checkout the main repository
       uses: actions/checkout@v2
 
@@ -40,41 +38,28 @@ jobs:
         echo "Latest commit hash: $LATEST_COMMIT"
         echo "LATEST_COMMIT=$LATEST_COMMIT" >> $GITHUB_ENV
 
-    - name: Get previous commit hash (if exists)
-      id: get_previous_commit
+    - name: Trigger build if new commit found
+      id: trigger_build
       run: |
-        if [ -f ${{ env.COMMIT_FILE }} ]; then
-          PREVIOUS_COMMIT=$(cat ${{ env.COMMIT_FILE }})
-          echo "Previous commit hash: $PREVIOUS_COMMIT"
-        else
-          echo "No previous commit found. This is the first run."
-          PREVIOUS_COMMIT=""
-        fi
-        echo "PREVIOUS_COMMIT=$PREVIOUS_COMMIT" >> $GITHUB_ENV
-
-    - name: Compare commit hashes
-      id: compare_commits
-      run: |
-        if [ "${{ env.LATEST_COMMIT }}" != "${{ env.PREVIOUS_COMMIT }}" ]; then
-          echo "New commit found. Proceeding with the build."
-          # 执行构建步骤（这里根据需求可以修改）
-          echo "Triggering build..."
+        # 获取上次的最新提交哈希
+        LAST_COMMIT=$(cat .commitHash || echo "")
+        
+        if [ "$LATEST_COMMIT" != "$LAST_COMMIT" ]; then
+          echo "New commit found. Triggering build..."
+          
           # 触发其他工作流（例如：RAX3000M.yml）
           curl -X POST https://api.github.com/repos/${{ github.repository }}/dispatches \
             -H "Accept: application/vnd.github.v3+json" \
             -H "Authorization: token ${{ secrets.ACTIONS_TRIGGER_PAT }}" \
             -d '{"event_type":"Source Code Update"}'
 
-          # 保存当前提交哈希以便下次比较
-          echo $LATEST_COMMIT > ${{ env.COMMIT_FILE }}
+          # 保存当前提交哈希
+          echo $LATEST_COMMIT > .commitHash
         else
           echo "No new commits. Skipping build."
         fi
 
     - name: Notify about build status
       run: |
-        if [ "${{ env.LATEST_COMMIT }}" != "${{ env.PREVIOUS_COMMIT }}" ]; then
-          echo "Build triggered because of new commit."
-        else
-          echo "No new commits. Build skipped."
-        fi
+        if [ "$LATEST_COMMIT" != "$LAST_COMMIT" ]; then
+          echo "Build triggered because of new comm
