@@ -35,7 +35,14 @@ jobs:
       run: |
         # 使用 GitHub API 获取 `hanwckf/immortalwrt-mt798x` 仓库的最新提交哈希
         LATEST_COMMIT=$(curl -s https://api.github.com/repos/hanwckf/immortalwrt-mt798x/commits | jq -r '.[0].sha')
-        echo "Latest commit hash: $LATEST_COMMIT"
+        
+        # 输出调试信息，检查返回的提交哈希
+        echo "LATEST_COMMIT: '$LATEST_COMMIT'"
+
+        # 确保变量中的空格或换行被去除
+        LATEST_COMMIT=$(echo "$LATEST_COMMIT" | xargs)
+        echo "Cleaned LATEST_COMMIT: '$LATEST_COMMIT'"
+
         echo "LATEST_COMMIT=$LATEST_COMMIT" >> $GITHUB_ENV
 
     - name: Trigger build if new commit found
@@ -44,17 +51,28 @@ jobs:
         # 获取上次的最新提交哈希
         LAST_COMMIT=$(cat .commitHash || echo "")
         
+        # 输出调试信息，检查上次的提交哈希
+        echo "LAST_COMMIT: '$LAST_COMMIT'"
+
+        # 确保变量中的空格或换行被去除
+        LAST_COMMIT=$(echo "$LAST_COMMIT" | xargs)
+        echo "Cleaned LAST_COMMIT: '$LAST_COMMIT'"
+
+        # 比较最新的提交哈希和上次的提交哈希
         if [ "$LATEST_COMMIT" != "$LAST_COMMIT" ]; then
           echo "New commit found. Triggering build..."
           
           # 触发其他工作流（例如：RAX3000M.yml）
-          curl -X POST https://api.github.com/repos/${{ github.repository }}/dispatches \
+          response=$(curl -X POST https://api.github.com/repos/${{ github.repository }}/dispatches \
             -H "Accept: application/vnd.github.v3+json" \
             -H "Authorization: token ${{ secrets.ACTIONS_TRIGGER_PAT }}" \
-            -d '{"event_type":"Source Code Update"}'
+            -d '{"event_type":"Source Code Update"}')
+
+          # 输出返回的响应信息进行调试
+          echo "Response from dispatch API: $response"
 
           # 保存当前提交哈希
-          echo $LATEST_COMMIT > .commitHash
+          echo "$LATEST_COMMIT" > .commitHash
         else
           echo "No new commits. Skipping build."
         fi
@@ -62,4 +80,7 @@ jobs:
     - name: Notify about build status
       run: |
         if [ "$LATEST_COMMIT" != "$LAST_COMMIT" ]; then
-          echo "Build triggered because of new comm
+          echo "Build triggered because of new commit."
+        else
+          echo "No new commits. No build triggered."
+        fi
