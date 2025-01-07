@@ -35,7 +35,7 @@ jobs:
       run: |
         # 使用 GitHub API 获取 `hanwckf/immortalwrt-mt798x` 仓库的最新提交哈希
         LATEST_COMMIT=$(curl -s https://api.github.com/repos/hanwckf/immortalwrt-mt798x/commits | jq -r '.[0].sha')
-        
+
         # 输出调试信息，检查返回的提交哈希
         echo "LATEST_COMMIT: '$LATEST_COMMIT'"
 
@@ -45,12 +45,16 @@ jobs:
 
         echo "LATEST_COMMIT=$LATEST_COMMIT" >> $GITHUB_ENV
 
-    - name: Trigger build if new commit found
-      id: trigger_build
+    - name: Check for previous commit hash
+      id: check_commit
       run: |
-        # 获取上次的最新提交哈希
-        LAST_COMMIT=$(cat .commitHash || echo "")
-        
+        # 检查上次提交哈希的文件是否存在
+        if [ -f .commitHash ]; then
+          LAST_COMMIT=$(cat .commitHash)
+        else
+          LAST_COMMIT=""
+        fi
+
         # 输出调试信息，检查上次的提交哈希
         echo "LAST_COMMIT: '$LAST_COMMIT'"
 
@@ -58,10 +62,16 @@ jobs:
         LAST_COMMIT=$(echo "$LAST_COMMIT" | xargs)
         echo "Cleaned LAST_COMMIT: '$LAST_COMMIT'"
 
+        # 将 `LAST_COMMIT` 设置为 GitHub 环境变量，供后续步骤使用
+        echo "LAST_COMMIT=$LAST_COMMIT" >> $GITHUB_ENV
+
+    - name: Trigger build if new commit found
+      id: trigger_build
+      run: |
         # 比较最新的提交哈希和上次的提交哈希
         if [ "$LATEST_COMMIT" != "$LAST_COMMIT" ]; then
           echo "New commit found. Triggering build..."
-          
+
           # 触发其他工作流（例如：RAX3000M.yml）
           response=$(curl -X POST https://api.github.com/repos/${{ github.repository }}/dispatches \
             -H "Accept: application/vnd.github.v3+json" \
